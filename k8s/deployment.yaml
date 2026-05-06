@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: myapp
-        image: stamanos/myapp:latest  # θα αντικατασταθεί από το pipeline με το σωστό tag
+        image: ghcr.io/stamanos/myapp:latest  # θα αντικατασταθεί από το pipeline με το σωστό tag
         ports:
         - containerPort: 8080
 

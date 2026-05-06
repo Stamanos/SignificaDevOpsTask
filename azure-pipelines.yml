@@ -8,7 +8,7 @@ pool:
 
 variables:
   imageRepository: 'myapp'
-  containerRegistry: 'stamanos'  # Το Docker Hub username σου
+  containerRegistry: 'ghcr.io/stamanos'  # GitHub Container Registry
   imageTag: '$(Build.BuildId)'
 
 stages:
@@ -65,13 +65,12 @@ stages:
       displayName: 'Podman Build Image'
 
     - script: |
-        echo "$(DOCKER_PASSWORD)" | podman login docker.io -u $(DOCKER_USERNAME) --password-stdin
-        podman push docker.io/$(containerRegistry)/$(imageRepository):$(imageTag)
-        podman push docker.io/$(containerRegistry)/$(imageRepository):latest
-      displayName: 'Podman Push to Docker Hub'
+        echo "$(GITHUB_TOKEN)" | podman login ghcr.io -u stamanos --password-stdin
+        podman push $(containerRegistry)/$(imageRepository):$(imageTag)
+        podman push $(containerRegistry)/$(imageRepository):latest
+      displayName: 'Podman Push to GitHub Container Registry'
       env:
-        DOCKER_USERNAME: $(DOCKER_USERNAME)
-        DOCKER_PASSWORD: $(DOCKER_PASSWORD)
+        GITHUB_TOKEN: $(GITHUB_TOKEN)
 
 # ─────────────────────────────────────────
 # Stage 3: Deploy to Kubernetes (Minikube)
