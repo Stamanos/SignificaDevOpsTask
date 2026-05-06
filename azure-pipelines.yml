@@ -43,35 +43,35 @@ stages:
       displayName: 'Upload artifact'
 
 # ─────────────────────────────────────────
-# Stage 2: Docker Build & Push
+# Stage 2: Podman Build & Push
 # ─────────────────────────────────────────
 - stage: Docker
-  displayName: 'Docker Build & Push'
+  displayName: 'Podman Build & Push'
   dependsOn: Build
   jobs:
-  - job: DockerJob
+  - job: PodmanJob
     steps:
     - checkout: self
 
-    - task: Docker@2
-      displayName: 'Build Docker image'
-      inputs:
-        command: 'build'
-        dockerfile: 'Dockerfile'
-        repository: '$(containerRegistry)/$(imageRepository)'
-        tags: |
-          $(imageTag)
-          latest
+    - script: |
+        sudo apt-get update -qq
+        sudo apt-get install -y podman
+        podman --version
+      displayName: 'Install Podman'
 
-    - task: Docker@2
-      displayName: 'Push to Docker Hub'
-      inputs:
-        command: 'push'
-        containerRegistry: 'DockerHubConnection'  # Service connection στο Azure DevOps
-        repository: '$(containerRegistry)/$(imageRepository)'
-        tags: |
-          $(imageTag)
-          latest
+    - script: |
+        podman build -t $(containerRegistry)/$(imageRepository):$(imageTag) .
+        podman tag $(containerRegistry)/$(imageRepository):$(imageTag) $(containerRegistry)/$(imageRepository):latest
+      displayName: 'Podman Build Image'
+
+    - script: |
+        echo "$(DOCKER_PASSWORD)" | podman login docker.io -u $(DOCKER_USERNAME) --password-stdin
+        podman push docker.io/$(containerRegistry)/$(imageRepository):$(imageTag)
+        podman push docker.io/$(containerRegistry)/$(imageRepository):latest
+      displayName: 'Podman Push to Docker Hub'
+      env:
+        DOCKER_USERNAME: $(DOCKER_USERNAME)
+        DOCKER_PASSWORD: $(DOCKER_PASSWORD)
 
 # ─────────────────────────────────────────
 # Stage 3: Deploy to Kubernetes (Minikube)
