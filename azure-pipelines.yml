@@ -1,25 +1,96 @@
 trigger:
-- main
+  branches:
+    include:
+      - main
 
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-- checkout: self
+variables:
+  imageRepository: 'myapp'
+  containerRegistry: 'stamanos'  # Το Docker Hub username σου
+  imageTag: '$(Build.BuildId)'
 
-- task: UseDotNet@2
-  inputs:
-    packageType: 'sdk'
-    version: '8.0.x'
+stages:
 
-- script: dotnet restore
-  displayName: Restore
+# ─────────────────────────────────────────
+# Stage 1: Build & Test
+# ─────────────────────────────────────────
+- stage: Build
+  displayName: 'Build & Test'
+  jobs:
+  - job: BuildJob
+    steps:
+    - checkout: self
 
-- script: dotnet build --configuration Release
-  displayName: Build
+    - task: UseDotNet@2
+      displayName: 'Use .NET 8'
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
 
-- script: dotnet publish -c Release -o publish
-  displayName: Publish
+    - script: dotnet restore src/MyApp/MyApp.csproj
+      displayName: 'Restore NuGet packages'
 
-- publish: publish
-  artifact: drop
+    - script: dotnet build src/MyApp/MyApp.csproj --configuration Release --no-restore
+      displayName: 'Build'
+
+    - script: dotnet publish src/MyApp/MyApp.csproj -c Release -o $(Build.ArtifactStagingDirectory)/publish --no-restore
+      displayName: 'Publish'
+
+    - publish: $(Build.ArtifactStagingDirectory)/publish
+      artifact: drop
+      displayName: 'Upload artifact'
+
+# ─────────────────────────────────────────
+# Stage 2: Docker Build & Push
+# ─────────────────────────────────────────
+- stage: Docker
+  displayName: 'Docker Build & Push'
+  dependsOn: Build
+  jobs:
+  - job: DockerJob
+    steps:
+    - checkout: self
+
+    - task: Docker@2
+      displayName: 'Build Docker image'
+      inputs:
+        command: 'build'
+        dockerfile: 'Dockerfile'
+        repository: '$(containerRegistry)/$(imageRepository)'
+        tags: |
+          $(imageTag)
+          latest
+
+    - task: Docker@2
+      displayName: 'Push to Docker Hub'
+      inputs:
+        command: 'push'
+        containerRegistry: 'DockerHubConnection'  # Service connection στο Azure DevOps
+        repository: '$(containerRegistry)/$(imageRepository)'
+        tags: |
+          $(imageTag)
+          latest
+
+# ─────────────────────────────────────────
+# Stage 3: Deploy to Kubernetes (Minikube)
+# ─────────────────────────────────────────
+- stage: Deploy
+  displayName: 'Deploy to Kubernetes'
+  dependsOn: Docker
+  jobs:
+  - job: DeployJob
+    steps:
+    - checkout: self
+
+    - task: KubernetesManifest@1
+      displayName: 'Deploy to K8s'
+      inputs:
+        action: 'deploy'
+        kubernetesServiceConnection: 'MinikubeConnection'  # Service connection στο Azure DevOps
+        manifests: |
+          k8s/deployment.yaml
+          k8s/service.yaml
+          k8s/hpa.yaml
+        containers: '$(containerRegistry)/$(imageRepository):$(imageTag)'

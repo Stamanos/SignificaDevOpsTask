@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  labels:
+    app: myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp
+        image: stamanos/myapp:latest  # θα αντικατασταθεί από το pipeline με το σωστό tag
+        ports:
+        - containerPort: 8080
+
+        # ─────────────────────────────
+        # Resource limits (απαραίτητο για HPA)
+        # ─────────────────────────────
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+
+        # ─────────────────────────────
+        # Startup Probe
+        # Δίνει χρόνο στο app να ξεκινήσει πριν αρχίσουν οι άλλοι checks
+        # ─────────────────────────────
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          failureThreshold: 10
+          periodSeconds: 5
+
+        # ─────────────────────────────
+        # Readiness Probe
+        # Αν fail → το pod βγαίνει από το load balancer (δεν λαμβάνει traffic)
+        # ─────────────────────────────
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+
+        # ─────────────────────────────
+        # Liveness Probe
+        # Αν fail → το K8s κάνει restart το container
+        # ─────────────────────────────
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
