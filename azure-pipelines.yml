@@ -1,0 +1,25 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: self
+
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '8.0.x'
+
+- script: dotnet restore
+  displayName: Restore
+
+- script: dotnet build --configuration Release
+  displayName: Build
+
+- script: dotnet publish -c Release -o publish
+  displayName: Publish
+
+- publish: publish
+  artifact: drop
