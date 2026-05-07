@@ -80,16 +80,15 @@ stages:
   dependsOn: Docker
   jobs:
   - job: DeployJob
+    pool:
+      name: 'LocalPool'  # Self-hosted agent με πρόσβαση στο Minikube
     steps:
     - checkout: self
 
-    - task: KubernetesManifest@1
-      displayName: 'Deploy to K8s'
-      inputs:
-        action: 'deploy'
-        kubernetesServiceConnection: 'MinikubeConnection'  # Service connection στο Azure DevOps
-        manifests: |
-          k8s/deployment.yaml
-          k8s/service.yaml
-          k8s/hpa.yaml
-        containers: '$(containerRegistry)/$(imageRepository):$(imageTag)'
+    - script: |
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+        kubectl apply -f k8s/hpa.yaml
+        kubectl set image deployment/myapp myapp=ghcr.io/stamanos/myapp:$(Build.BuildId)
+        kubectl rollout status deployment/myapp
+      displayName: 'Deploy to Minikube'
