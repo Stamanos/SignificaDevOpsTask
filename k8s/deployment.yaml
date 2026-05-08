@@ -16,12 +16,16 @@ spec:
     spec:
       containers:
       - name: myapp
-        image: ghcr.io/stamanos/myapp:latest  # θα αντικατασταθεί από το pipeline με το σωστό tag
+        image: ghcr.io/stamanos/myapp:latest  #ToDo: replace with actual image tag in pipeline
+
+         # ─────────────────────────────
+         # Container Port
+         # ─────────────────────────────
         ports:
         - containerPort: 8080
 
         # ─────────────────────────────
-        # Resource limits (απαραίτητο για HPA)
+        # Resource limits
         # ─────────────────────────────
         resources:
           requests:
@@ -33,7 +37,6 @@ spec:
 
         # ─────────────────────────────
         # Startup Probe
-        # Δίνει χρόνο στο app να ξεκινήσει πριν αρχίσουν οι άλλοι checks
         # ─────────────────────────────
         startupProbe:
           httpGet:
@@ -44,7 +47,6 @@ spec:
 
         # ─────────────────────────────
         # Readiness Probe
-        # Αν fail → το pod βγαίνει από το load balancer (δεν λαμβάνει traffic)
         # ─────────────────────────────
         readinessProbe:
           httpGet:
@@ -56,7 +58,6 @@ spec:
 
         # ─────────────────────────────
         # Liveness Probe
-        # Αν fail → το K8s κάνει restart το container
         # ─────────────────────────────
         livenessProbe:
           httpGet:
